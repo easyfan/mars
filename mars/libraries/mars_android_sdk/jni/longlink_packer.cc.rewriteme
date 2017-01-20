@@ -41,6 +41,12 @@ struct __STNetMsgXpHeader {
 };
 #pragma pack(pop)
 
+#pragma pack(push, 1)
+struct __MACSPacketHeader {
+    byte[4]    packet_length;
+};
+#pragma pack(pop)
+
 namespace mars {
 namespace stn {
 	void SetClientVersion(uint32_t _client_version)  {
@@ -49,35 +55,84 @@ namespace stn {
 }
 }
 
+static int byteArrayToInt_C(byte[] bts) {
+    int value1 = 0xFF;
+    int value2 = 0XFF;
+    int value3 = 0XFF;
+    int value4 = 0XFF;
+
+    value1 = (value1 & bts[0]) * (0xFFFFFF + 1);
+    value2 = (value2 & bts[1]) * (0xFFFF + 1);
+    value3 = (value3 & bts[2]) * (0xFF + 1);
+    value4 = value4 & bts[3];
+
+    return value1 + value2 + value3 + value4;
+}
+
+static int checkT2Header(byte[] data) {
+    if (mp.packet_length[0] == ((mp.packet_length[1] ^ mp.packet_length[2]) ^ mp.packet_length[3])) {
+        mp.packet_length[0] = 0;
+        return ByteArrayUtil.byteArrayToInt_C(mp.packet_length);// .ntohl(head, true);
+    }
+    return -1;
+}
+
 static int __unpack_test(const void* _packed, size_t _packed_len, uint32_t& _cmdid, uint32_t& _seq, size_t& _package_len, size_t& _body_len) {
+    /*
     __STNetMsgXpHeader st = {0};
     if (_packed_len < sizeof(__STNetMsgXpHeader)) {
         _package_len = 0;
         _body_len = 0;
         return LONGLINK_UNPACK_CONTINUE;
     }
-    
+
     memcpy(&st, _packed, sizeof(__STNetMsgXpHeader));
-    
+
     uint32_t head_len = ntohl(st.head_length);
     uint32_t client_version = ntohl(st.client_version);
     if (client_version != sg_client_version) {
         _package_len = 0;
         _body_len = 0;
-    	return LONGLINK_UNPACK_FALSE;
+        return LONGLINK_UNPACK_FALSE;
     }
     _cmdid = ntohl(st.cmdid);
-	_seq = ntohl(st.seq);
-	_body_len = ntohl(st.body_length);
-	_package_len = head_len + _body_len;
+    _seq = ntohl(st.seq);
+    _body_len = ntohl(st.body_length);
+    _package_len = head_len + _body_len;
 
     if (_package_len > 1024*1024) { return LONGLINK_UNPACK_FALSE; }
     if (_package_len > _packed_len) { return LONGLINK_UNPACK_CONTINUE; }
-    
+
+    return LONGLINK_UNPACK_OK;
+    */
+    __MACSPacketHeader mp = {0};
+    if (_packed_len < sizeof(__MACSPacketHeader)) {
+        _package_len = 0;
+        _body_len = 0;
+        return LONGLINK_UNPACK_CONTINUE;
+    }
+
+    memcpy(mp.packet_length, _packed, sizeof(__MACSPacketHeader));
+
+    int pl = checkT2Header(mp.packet_length);
+
+    if (pl > 50 * 1024 || pl < 0) {
+        return LONGLINK_UNPACK_FALSE;
+    }
+
+    _cmdid = 0;
+    _seq = Task::kLongLinkIdentifyCheckerTaskID;
+    _body_len = pl;
+    _package_len = sizeof(__MACSPacketHeader) + _body_len;
+
+    if (_package_len > 1024*1024) { return LONGLINK_UNPACK_FALSE; }
+    if (_package_len > _packed_len) { return LONGLINK_UNPACK_CONTINUE; }
+
     return LONGLINK_UNPACK_OK;
 }
 
 void longlink_pack(uint32_t _cmdid, uint32_t _seq, const void* _raw, size_t _raw_len, AutoBuffer& _packed) {
+    /*
     __STNetMsgXpHeader st = {0};
     st.head_length = htonl(sizeof(__STNetMsgXpHeader));
     st.client_version = htonl(sg_client_version);
@@ -87,9 +142,22 @@ void longlink_pack(uint32_t _cmdid, uint32_t _seq, const void* _raw, size_t _raw
 
     _packed.AllocWrite(sizeof(__STNetMsgXpHeader) + _raw_len);
     _packed.Write(&st, sizeof(st));
-    
+
     if (NULL != _raw) _packed.Write(_raw, _raw_len);
-    
+
+    _packed.Seek(0, AutoBuffer::ESeekStart);
+    */
+    __MACSPacketHeader mp = {0};
+    mp.packet_length[3] = (byte) (_raw_len & 0xff);
+    mp.packet_length[2] = (byte) (length >> 8 & 0xff);
+    mp.packet_length[1] = (byte) (length >> 16 & 0xff);
+    mp.packet_length[0] = (byte) (mp.packet_length[1] ^ mp.packet_length[2] ^ mp.packet_length[3]);
+
+    _packed.AllocWrite(sizeof(__MACSPacketHeader) + _raw_len);
+    _packed.Write(&mp, sizeof(mp));
+
+    if (NULL != _raw) _packed.Write(_raw, _raw_len);
+
     _packed.Seek(0, AutoBuffer::ESeekStart);
 }
 
