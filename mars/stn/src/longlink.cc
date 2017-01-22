@@ -85,7 +85,7 @@ class LongLinkConnectObserver : public MComplexConnect {
     virtual bool OnVerifySend(unsigned int _index, const socket_address& _addr, SOCKET _socket, AutoBuffer& _buffer_send) {
         AutoBuffer body;
         longlink_noop_req_body(body);
-        longlink_pack(longlink_noop_cmdid(), Task::kNoopTaskID, body.Ptr(), body.Length(), _buffer_send);
+        macslink_pack(longlink_noop_cmdid(), Task::kNoopTaskID, body.Ptr(), body.Length(), _buffer_send);
         return true;
     }
 
@@ -94,7 +94,7 @@ class LongLinkConnectObserver : public MComplexConnect {
         uint32_t  taskid = Task::kInvalidTaskID;
         size_t pack_len = 0;
         AutoBuffer bufferbody;
-        int ret = longlink_unpack(_buffer_recv, cmdid, taskid, pack_len, bufferbody);
+        int ret = macslink_unpack(_buffer_recv, cmdid, taskid, pack_len, bufferbody);
 
         if (LONGLINK_UNPACK_OK != ret) {
             xerror2(TSF"0>ret, index:%_, sock:%_, %_, ret:%_, cmdid:%_, taskid:%_, pack_len:%_, recv_len:%_", _index, _socket, _addr.url(), ret, cmdid, taskid, pack_len, _buffer_recv.Length());
@@ -182,7 +182,7 @@ bool LongLink::__Send(const unsigned char* _pbuf, size_t _len, uint32_t _cmdid, 
 
     lstsenddata_.back().cmdid = _cmdid;
     lstsenddata_.back().taskid = _taskid;
-    longlink_pack(_cmdid, _taskid, _pbuf, _len, lstsenddata_.back().data);
+    macslink_pack(_cmdid, _taskid, _pbuf, _len, lstsenddata_.back().data);
     lstsenddata_.back().data.Seek(0, AutoBuffer::ESeekStart);
     lstsenddata_.back().task_info = _task_info;
 
@@ -675,7 +675,7 @@ void LongLink::__RunReadWrite(SOCKET _sock, ErrCmdType& _errtype, int& _errcode,
                 size_t packlen = 0;
                 AutoBuffer body;
                 
-                int unpackret = longlink_unpack(bufrecv, cmdid, taskid, packlen, body);
+                int unpackret = macslink_unpack(bufrecv, cmdid, taskid, packlen, body);
                 
                 if (LONGLINK_UNPACK_FALSE == unpackret) {
                     xerror2(TSF"task socket recv sock:%0, unpack error dump:%1", _sock, xdump(bufrecv.Ptr(), bufrecv.Length()));
@@ -749,7 +749,7 @@ End:
 				size_t packlen = 0;
 				AutoBuffer body;
 
-				int unpackret = longlink_unpack(bufrecv, cmdid, taskid, packlen, body);
+				int unpackret = macslink_unpack(bufrecv, cmdid, taskid, packlen, body);
 				xinfo2(TSF"taskid:%_, cmdid:%_, task_info:%_; ", taskid, cmdid, sent_taskids[taskid]) >> close_log;
 				if (LONGLINK_UNPACK_CONTINUE == unpackret || LONGLINK_UNPACK_FALSE == unpackret) {
 					break;

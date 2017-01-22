@@ -45,7 +45,7 @@ LongLinkSpeedTestItem::LongLinkSpeedTestItem(const std::string& _ip, uint16_t _p
     AutoBuffer body;
     longlink_noop_req_body(body);
 
-    longlink_pack(longlink_noop_cmdid(), Task::kNoopTaskID, body.Ptr(), body.Length(), req_ab_);
+    macslink_pack(longlink_noop_cmdid(), Task::kNoopTaskID, body.Ptr(), body.Length(), req_ab_);
     req_ab_.Seek(0, AutoBuffer::ESeekStart);
 
     socket_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -198,10 +198,10 @@ int LongLinkSpeedTestItem::__HandleSpeedTestResp() {
         uint32_t anCmdID = 0;
         AutoBuffer body;
         
-        int nRet  = longlink_unpack(resp_ab_, anCmdID, anSeq, pacLength, body);
+        int nRet  = macslink_unpack(resp_ab_, anCmdID, anSeq, pacLength, body);
 
         if (LONGLINK_UNPACK_FALSE == nRet) {
-            xerror2(TSF"longlink_unpack false");
+            xerror2(TSF"macslink_unpack false");
             return kLongLinkSpeedTestFail;
         } else if (LONGLINK_UNPACK_CONTINUE == nRet) {
             xdebug2(TSF"not recv an package,continue recv, resp_ab_.Lenght():%0", resp_ab_.Length());

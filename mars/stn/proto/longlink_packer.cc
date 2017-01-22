@@ -30,6 +30,7 @@
 #endif
 
 static uint32_t sg_client_version = 0;
+static std::string TAG_EVENT_ID("11");
 
 #pragma pack(push, 1)
 struct __STNetMsgXpHeader {
@@ -43,42 +44,45 @@ struct __STNetMsgXpHeader {
 
 #pragma pack(push, 1)
 struct __MACSPacketHeader {
-    byte[4]    packet_length;
+    BYTE packet_length0;
+    BYTE packet_length1;
+    BYTE packet_length2;
+    BYTE packet_length3;
 };
 #pragma pack(pop)
 
+
 namespace mars {
-namespace stn {
-	void SetClientVersion(uint32_t _client_version)  {
-		sg_client_version = _client_version;
-	}
-}
+    namespace stn {
+        void SetClientVersion(uint32_t _client_version)  {
+            sg_client_version = _client_version;
+        }
+    }
 }
 
-static int byteArrayToInt_C(byte[] bts) {
+static int byteArrayToInt_C(BYTE bts0,BYTE bts1,BYTE bts2,BYTE bts3) {
     int value1 = 0xFF;
     int value2 = 0XFF;
     int value3 = 0XFF;
     int value4 = 0XFF;
 
-    value1 = (value1 & bts[0]) * (0xFFFFFF + 1);
-    value2 = (value2 & bts[1]) * (0xFFFF + 1);
-    value3 = (value3 & bts[2]) * (0xFF + 1);
-    value4 = value4 & bts[3];
+    value1 = (value1 & bts0) * (0xFFFFFF + 1);
+    value2 = (value2 & bts1) * (0xFFFF + 1);
+    value3 = (value3 & bts2) * (0xFF + 1);
+    value4 = value4 & bts3;
 
     return value1 + value2 + value3 + value4;
 }
 
-static int checkT2Header(byte[] data) {
-    if (mp.packet_length[0] == ((mp.packet_length[1] ^ mp.packet_length[2]) ^ mp.packet_length[3])) {
-        mp.packet_length[0] = 0;
-        return ByteArrayUtil.byteArrayToInt_C(mp.packet_length);// .ntohl(head, true);
+static int checkT2Header(__MACSPacketHeader& header) {
+    if (header.packet_length0 == ((header.packet_length1 ^ header.packet_length2) ^ header.packet_length3)) {
+        header.packet_length0 = 0;
+        return byteArrayToInt_C(header.packet_length0,header.packet_length1,header.packet_length2,header.packet_length3);// .ntohl(head, true);
     }
     return -1;
 }
 
 static int __unpack_test(const void* _packed, size_t _packed_len, uint32_t& _cmdid, uint32_t& _seq, size_t& _package_len, size_t& _body_len) {
-    /*
     __STNetMsgXpHeader st = {0};
     if (_packed_len < sizeof(__STNetMsgXpHeader)) {
         _package_len = 0;
@@ -104,7 +108,10 @@ static int __unpack_test(const void* _packed, size_t _packed_len, uint32_t& _cmd
     if (_package_len > _packed_len) { return LONGLINK_UNPACK_CONTINUE; }
 
     return LONGLINK_UNPACK_OK;
-    */
+}
+
+static int __unpack_test(const void* _packed, size_t _packed_len, size_t& _package_len, size_t& _body_len) {
+    xgroup2_define(close_log);
     __MACSPacketHeader mp = {0};
     if (_packed_len < sizeof(__MACSPacketHeader)) {
         _package_len = 0;
@@ -112,16 +119,17 @@ static int __unpack_test(const void* _packed, size_t _packed_len, uint32_t& _cmd
         return LONGLINK_UNPACK_CONTINUE;
     }
 
-    memcpy(mp.packet_length, _packed, sizeof(__MACSPacketHeader));
+    memcpy(&mp, _packed, sizeof(__MACSPacketHeader));
 
-    int pl = checkT2Header(mp.packet_length);
+    int pl = checkT2Header(mp);
+    xinfo2(TSF", checkT2Header:%_,%_,%_,%_; pl = %_", mp.packet_length0, mp.packet_length1,mp.packet_length2,mp.packet_length3,pl) >> close_log;
+
+    xinfo2_if(pl == -1, TSF", checkT2Header:%_,%_,%_,%_; pl = %_", mp.packet_length0, mp.packet_length1,mp.packet_length2,mp.packet_length3,pl) >> close_log;
 
     if (pl > 50 * 1024 || pl < 0) {
         return LONGLINK_UNPACK_FALSE;
     }
 
-    _cmdid = 0;
-    _seq = Task::kLongLinkIdentifyCheckerTaskID;
     _body_len = pl;
     _package_len = sizeof(__MACSPacketHeader) + _body_len;
 
@@ -132,7 +140,6 @@ static int __unpack_test(const void* _packed, size_t _packed_len, uint32_t& _cmd
 }
 
 void longlink_pack(uint32_t _cmdid, uint32_t _seq, const void* _raw, size_t _raw_len, AutoBuffer& _packed) {
-    /*
     __STNetMsgXpHeader st = {0};
     st.head_length = htonl(sizeof(__STNetMsgXpHeader));
     st.client_version = htonl(sg_client_version);
@@ -146,12 +153,16 @@ void longlink_pack(uint32_t _cmdid, uint32_t _seq, const void* _raw, size_t _raw
     if (NULL != _raw) _packed.Write(_raw, _raw_len);
 
     _packed.Seek(0, AutoBuffer::ESeekStart);
-    */
+}
+
+void macslink_pack(uint32_t _cmdid, uint32_t _seq, const void* _raw, size_t _raw_len, AutoBuffer& _packed) {
+    xgroup2_define(close_log);
+    xinfo2(TSF", TEST######################################pack")>> close_log;
     __MACSPacketHeader mp = {0};
-    mp.packet_length[3] = (byte) (_raw_len & 0xff);
-    mp.packet_length[2] = (byte) (length >> 8 & 0xff);
-    mp.packet_length[1] = (byte) (length >> 16 & 0xff);
-    mp.packet_length[0] = (byte) (mp.packet_length[1] ^ mp.packet_length[2] ^ mp.packet_length[3]);
+    mp.packet_length3 = (BYTE) (_raw_len & 0xff);
+    mp.packet_length2 = (BYTE) (_raw_len >> 8 & 0xff);
+    mp.packet_length1 = (BYTE) (_raw_len >> 16 & 0xff);
+    mp.packet_length0 = (BYTE) (mp.packet_length1 ^ mp.packet_length2 ^ mp.packet_length3);
 
     _packed.AllocWrite(sizeof(__MACSPacketHeader) + _raw_len);
     _packed.Write(&mp, sizeof(mp));
@@ -163,13 +174,108 @@ void longlink_pack(uint32_t _cmdid, uint32_t _seq, const void* _raw, size_t _raw
 
 
 int longlink_unpack(const AutoBuffer& _packed, uint32_t& _cmdid, uint32_t& _seq, size_t& _package_len, AutoBuffer& _body) {
-   size_t body_len = 0;
-   int ret = __unpack_test(_packed.Ptr(), _packed.Length(), _cmdid,  _seq, _package_len, body_len);
-    
+    size_t body_len = 0;
+    int ret = __unpack_test(_packed.Ptr(), _packed.Length(), _cmdid,  _seq, _package_len, body_len);
     if (LONGLINK_UNPACK_OK != ret) return ret;
-    
+
     _body.Write(AutoBuffer::ESeekCur, _packed.Ptr(_package_len-body_len), body_len);
-    
+
+    return ret;
+}
+
+static std::string* findTagName(BYTE* data, size_t offset) {
+    size_t index;
+    for (index = offset; index >= 1; index--) {
+        if (data[index] == 0) {
+            break;
+        }
+    }
+    if (index != 0) {
+        char* tmp = new char[offset - index - 1];
+        memcpy(tmp, data+index+1, offset - index - 1);
+        std::string* ret = new std::string(tmp,offset - index - 1);
+        delete []tmp;
+        return ret;
+    } else {
+        char* tmp = new char[offset];
+        memcpy(tmp, data, offset);
+        std::string* ret = new std::string(tmp,offset);
+        delete []tmp;
+        return ret;
+    }
+}
+
+static size_t findEquIndex(BYTE* data, size_t offset, size_t total) {
+    size_t index;
+    for (index = offset; index < total; index++) {
+        if (data[index] == 61) {
+            return index;
+        }
+    }
+    return -1;
+}
+
+static size_t findStrLen(BYTE* data, size_t offset, size_t total) {
+    size_t index;
+    for (index = offset + 1; index < total; index++) {
+        if (data[index] == 0) {
+            break;
+        }
+    }
+    return index - offset;
+}
+
+static BYTE* findStrData(BYTE* data, size_t offset, size_t length) {
+    if (data[offset + length] == 0) {
+        BYTE* tmp = new BYTE[length - 1];
+        memcpy(tmp, data + offset + 1 , length-1);
+        return tmp;
+    } else {
+        BYTE* tmp = new BYTE[length];
+        memcpy(tmp, data + offset + 1 , length);
+        return tmp;
+    }
+}
+
+static uint32_t __unpack_seq(void* _packed, size_t _packed_len) {
+    size_t index = 0;
+    BYTE *bt = new BYTE[_packed_len];
+    memcpy(bt, _packed, _packed_len);
+    while (index < _packed_len) {
+        index = findEquIndex(bt, index, _packed_len);
+        std::string* tagName = findTagName(bt, index);
+        size_t len = findStrLen(bt, index, _packed_len);
+        if (TAG_EVENT_ID == *tagName) {
+            BYTE * tmp = findStrData(bt, index, len);
+            uint32_t n = 0;
+            for (size_t i = 0; i<len ; i++) {
+                n = n*10+tmp[i]-'0';
+            }
+            delete tagName;
+            return n;
+        }
+        delete tagName;
+        index += len;
+    }
+    return 0;
+}
+
+int macslink_unpack(const AutoBuffer& _packed, uint32_t& _cmdid, uint32_t& _seq, size_t& _package_len, AutoBuffer& _body) {
+
+
+    xgroup2_define(close_log);
+    xinfo2(TSF", TEST######################################unpack")>> close_log;
+    size_t body_len = 0;
+    int ret = __unpack_test(_packed.Ptr(), _packed.Length(), _package_len, body_len);
+
+    if (LONGLINK_UNPACK_OK != ret) return ret;
+
+    _body.Write(AutoBuffer::ESeekCur, _packed.Ptr(_package_len-body_len), body_len);
+
+    _cmdid = 0;
+
+    _seq = __unpack_seq(_body.Ptr(), body_len);
+
     return ret;
 }
 
@@ -195,10 +301,10 @@ void longlink_noop_req_body(AutoBuffer& _body) {}
 void longlink_noop_resp_body(AutoBuffer& _body) {}
 
 uint32_t longlink_noop_interval() {
-	return 0;
+    return 0;
 }
 
-bool longlink_complexconnect_need_verify() {  
+bool longlink_complexconnect_need_verify() {
     return false;
 }
 
