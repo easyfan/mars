@@ -31,6 +31,8 @@
 
 static uint32_t sg_client_version = 0;
 static std::string TAG_EVENT_ID("11");
+static uint32_t macs_translated_login_seq = 0;
+static const uint32_t kLongLinkIdentifyCheckerTaskID = 0xFFFFFFFE;
 
 #pragma pack(push, 1)
 struct __STNetMsgXpHeader {
@@ -170,6 +172,8 @@ void macslink_pack(uint32_t _cmdid, uint32_t _seq, const void* _raw, size_t _raw
     if (NULL != _raw) _packed.Write(_raw, _raw_len);
 
     _packed.Seek(0, AutoBuffer::ESeekStart);
+    if (_seq == kLongLinkIdentifyCheckerTaskID)
+        macs_translated_login_seq = _cmdid;
 }
 
 
@@ -222,7 +226,7 @@ static size_t findStrLen(BYTE* data, size_t offset, size_t total) {
             break;
         }
     }
-    return index - offset;
+    return index - offset -1;
 }
 
 static BYTE* findStrData(BYTE* data, size_t offset, size_t length) {
@@ -238,19 +242,29 @@ static BYTE* findStrData(BYTE* data, size_t offset, size_t length) {
 }
 
 static uint32_t __unpack_seq(void* _packed, size_t _packed_len) {
+    xgroup2_define(close_log);
     size_t index = 0;
     BYTE *bt = new BYTE[_packed_len];
     memcpy(bt, _packed, _packed_len);
+    xinfo2(TSF", memcpy; bt = %_, _packed_len=%_", bt,_packed_len) >> close_log;
     while (index < _packed_len) {
         index = findEquIndex(bt, index, _packed_len);
+        xinfo2(TSF", findEquIndex; index = %_", index) >> close_log;
         std::string* tagName = findTagName(bt, index);
+        xinfo2(TSF", findTagName; tagName = %_", *tagName) >> close_log;
         size_t len = findStrLen(bt, index, _packed_len);
+        xinfo2(TSF", findStrLen; len = %_", len) >> close_log;
         if (TAG_EVENT_ID == *tagName) {
             BYTE * tmp = findStrData(bt, index, len);
             uint32_t n = 0;
+            std::string prt("{");
             for (size_t i = 0; i<len ; i++) {
                 n = n*10+tmp[i]-'0';
+                prt.append(1,tmp[i]);
+                prt.append(",");
             }
+            prt.append("}");
+            xinfo2(TSF", findStrData; tmp = %_", prt) >> close_log;
             delete tagName;
             return n;
         }
@@ -275,6 +289,12 @@ int macslink_unpack(const AutoBuffer& _packed, uint32_t& _cmdid, uint32_t& _seq,
     _cmdid = 0;
 
     _seq = __unpack_seq(_body.Ptr(), body_len);
+
+    if (_seq == macs_translated_login_seq) {
+        _seq = kLongLinkIdentifyCheckerTaskID;
+        macs_translated_login_seq = 0;
+    }
+    xinfo2(TSF", __unpack_seq; seq = %_", _seq) >> close_log;
 
     return ret;
 }
