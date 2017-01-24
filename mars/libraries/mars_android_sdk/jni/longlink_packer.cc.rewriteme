@@ -31,6 +31,9 @@
 
 static uint32_t sg_client_version = 0;
 static std::string TAG_EVENT_ID("11");
+static uint32_t MACS_HEARTBEAT_SIZE = 9;
+static BYTE MACS_HEARTBEAT_PACKET[9] = {'5', '=', '3', '3', 0, '3', '=', '2', 0};
+static BYTE MACS_HEARTBEAT_PACKET_ANSWER[9] = {'5', '=', '3', '3', 0, '3', '=', '3', 0};
 static uint32_t macs_translated_login_seq = 0;
 static const uint32_t kLongLinkIdentifyCheckerTaskID = 0xFFFFFFFE;
 
@@ -317,8 +320,12 @@ uint32_t signal_keep_cmdid() {
     return SIGNALKEEP_CMDID;
 }
 
-void longlink_noop_req_body(AutoBuffer& _body) {}
-void longlink_noop_resp_body(AutoBuffer& _body) {}
+void longlink_noop_req_body(AutoBuffer& _body) {
+    _body.Write(MACS_HEARTBEAT_PACKET,MACS_HEARTBEAT_SIZE);
+}
+void longlink_noop_resp_body(AutoBuffer& _body) {
+    //_body.write(MACS_HEARTBEAT_PACKET_ANSWER,MACS_HEARTBEAT_SIZE);
+}
 
 uint32_t longlink_noop_interval() {
     return 0;
