@@ -28,13 +28,17 @@
 #include "comm/xlogger/xlogger.h"
 #include "comm/socket/unix_socket.h"
 #endif
+#define NOOP_CMDID 6
+#define SIGNALKEEP_CMDID 243
+#define PUSH_DATA_TASKID 0
+#define INVALID_TRANSLATED_LOGIN_SEQ 0xFFFFFFFE
 
 static uint32_t sg_client_version = 0;
 static std::string TAG_EVENT_ID("11");
 static uint32_t MACS_HEARTBEAT_SIZE = 9;
 static BYTE MACS_HEARTBEAT_PACKET[9] = {'5', '=', '3', '3', 0, '3', '=', '2', 0};
 static BYTE MACS_HEARTBEAT_PACKET_ANSWER[9] = {'5', '=', '3', '3', 0, '3', '=', '3', 0};
-static uint32_t macs_translated_login_seq = 0;
+static uint32_t macs_translated_login_seq = INVALID_TRANSLATED_LOGIN_SEQ;
 static const uint32_t kLongLinkIdentifyCheckerTaskID = 0xFFFFFFFE;
 
 #pragma pack(push, 1)
@@ -274,7 +278,7 @@ static uint32_t __unpack_seq(void* _packed, size_t _packed_len) {
         delete tagName;
         index += len;
     }
-    return 0;
+    return PUSH_DATA_TASKID;
 }
 
 int macslink_unpack(const AutoBuffer& _packed, uint32_t& _cmdid, uint32_t& _seq, size_t& _package_len, AutoBuffer& _body) {
@@ -295,7 +299,7 @@ int macslink_unpack(const AutoBuffer& _packed, uint32_t& _cmdid, uint32_t& _seq,
 
     if (_seq == macs_translated_login_seq) {
         _seq = kLongLinkIdentifyCheckerTaskID;
-        macs_translated_login_seq = 0;
+        macs_translated_login_seq = INVALID_TRANSLATED_LOGIN_SEQ;
     }
     xinfo2(TSF", __unpack_seq; seq = %_", _seq) >> close_log;
 
@@ -303,9 +307,6 @@ int macslink_unpack(const AutoBuffer& _packed, uint32_t& _cmdid, uint32_t& _seq,
 }
 
 
-#define NOOP_CMDID 6
-#define SIGNALKEEP_CMDID 243
-#define PUSH_DATA_TASKID 0
 
 uint32_t longlink_noop_cmdid() {
     return NOOP_CMDID;
