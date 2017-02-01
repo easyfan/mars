@@ -62,7 +62,7 @@
 #include <openssl/ec.h>
 #include <openssl/ecdsa.h>
 #include <openssl/evp.h>
-#include "evp/evp_locl.h"
+#include "evp_locl.h"
 
 /* EC pkey context structure */
 
@@ -167,39 +167,39 @@ static int pkey_ec_verify(EVP_PKEY_CTX *ctx,
 	return ret;
 	}
 
-//static int pkey_ec_derive(EVP_PKEY_CTX *ctx, unsigned char *key, size_t *keylen)
-//	{
-//	int ret;
-//	size_t outlen;
-//	const EC_POINT *pubkey = NULL;
-//	if (!ctx->pkey || !ctx->peerkey)
-//		{
-//		ECerr(EC_F_PKEY_EC_DERIVE, EC_R_KEYS_NOT_SET);
-//		return 0;
-//		}
-//
-//	if (!key)
-//		{
-//		const EC_GROUP *group;
-//		group = EC_KEY_get0_group(ctx->pkey->pkey.ec);
-//		*keylen = (EC_GROUP_get_degree(group) + 7)/8;
-//		return 1;
-//		}
-//
-//	pubkey = EC_KEY_get0_public_key(ctx->peerkey->pkey.ec);
-//
-//	/* NB: unlike PKS#3 DH, if *outlen is less than maximum size this is
-//	 * not an error, the result is truncated.
-//	 */
-//
-//	outlen = *keylen;
-//
-//	ret = ECDH_compute_key(key, outlen, pubkey, ctx->pkey->pkey.ec, 0);
-//	if (ret < 0)
-//		return ret;
-//	*keylen = ret;
-//	return 1;
-//	}
+static int pkey_ec_derive(EVP_PKEY_CTX *ctx, unsigned char *key, size_t *keylen)
+	{
+	int ret;
+	size_t outlen;
+	const EC_POINT *pubkey = NULL;
+	if (!ctx->pkey || !ctx->peerkey)
+		{
+		ECerr(EC_F_PKEY_EC_DERIVE, EC_R_KEYS_NOT_SET);
+		return 0;
+		}
+
+	if (!key)
+		{
+		const EC_GROUP *group;
+		group = EC_KEY_get0_group(ctx->pkey->pkey.ec);
+		*keylen = (EC_GROUP_get_degree(group) + 7)/8;
+		return 1;
+		}
+
+	pubkey = EC_KEY_get0_public_key(ctx->peerkey->pkey.ec);
+
+	/* NB: unlike PKS#3 DH, if *outlen is less than maximum size this is
+	 * not an error, the result is truncated.
+	 */
+
+	outlen = *keylen;
+		
+	ret = ECDH_compute_key(key, outlen, pubkey, ctx->pkey->pkey.ec, 0);
+	if (ret < 0)
+		return ret;
+	*keylen = ret;
+	return 1;
+	}
 
 static int pkey_ec_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
 	{
@@ -332,8 +332,7 @@ const EVP_PKEY_METHOD ec_pkey_meth =
 	0,0,
 
 	0,
-	0,//pkey_ec_derive,
-	//0,  刘粲
+	pkey_ec_derive,
 
 	pkey_ec_ctrl,
 	pkey_ec_ctrl_str

@@ -117,10 +117,6 @@
 #include "cryptlib.h"
 #include <openssl/safestack.h>
 
-#ifdef _WIN32
-#define __CYGWIN__
-#endif
-
 #if defined(OPENSSL_SYS_WIN32) || defined(OPENSSL_SYS_WIN16)
 static double SSLeay_MSVC5_hack=0.0; /* and for VC1.5 */
 #endif
@@ -899,16 +895,3 @@ void OpenSSLDie(const char *file,int line,const char *assertion)
 	}
 
 void *OPENSSL_stderr(void)	{ return stderr; }
-
-int CRYPTO_memcmp(const void *in_a, const void *in_b, size_t len)
-{
-    size_t i;
-    const unsigned char *a = in_a;
-    const unsigned char *b = in_b;
-    unsigned char x = 0;
-
-    for (i = 0; i < len; i++)
-        x |= a[i] ^ b[i];
-
-    return x;
-}

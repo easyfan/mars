@@ -200,12 +200,7 @@ static int pkey_hmac_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
 		}
 	return 1;
 	}
-////////
-unsigned char* string_to_hex(const char*str, long *len){
-    //TODO
-    return str;
-}
-////////
+
 static int pkey_hmac_ctrl_str(EVP_PKEY_CTX *ctx,
 			const char *type, const char *value)
 	{

@@ -90,9 +90,7 @@ static const EVP_PKEY_ASN1_METHOD *standard_methods[] =
 #ifndef OPENSSL_NO_EC
 	&eckey_asn1_meth,
 #endif
-#ifndef OPENSSL_NO_HMAC
 	&hmac_asn1_meth
-#endif
 	};
 
 typedef int sk_cmp_fn_type(const char * const *a, const char * const *b);
