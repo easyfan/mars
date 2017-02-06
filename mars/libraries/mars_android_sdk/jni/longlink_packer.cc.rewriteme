@@ -34,6 +34,11 @@
 #define INVALID_TRANSLATED_LOGIN_SEQ 0xFFFFFFFE
 
 static uint32_t sg_client_version = 0;
+static uint32_t sg_long_link_type = 0;
+static const uint32_t LONG_LINK_DEFAULT = 0;
+static const uint32_t LONG_LINK_MACS = 1;
+static const uint32_t LONG_LINK_MQTT = 2;
+
 static std::string TAG_EVENT_ID("11");
 static uint32_t MACS_HEARTBEAT_SIZE = 9;
 static BYTE MACS_HEARTBEAT_PACKET[9] = {'5', '=', '3', '3', 0, '3', '=', '2', 0};
@@ -69,6 +74,7 @@ namespace mars {
 
         void SetLonglinkType(uint32_t type) {
             xinfo2(TSF "SetLonglinkType, type = %_",type);
+            sg_long_link_type = type;
         }
     }
 }
@@ -152,7 +158,7 @@ static int __unpack_test(const void* _packed, size_t _packed_len, size_t& _packa
     return LONGLINK_UNPACK_OK;
 }
 
-void longlink_pack(uint32_t _cmdid, uint32_t _seq, const void* _raw, size_t _raw_len, AutoBuffer& _packed) {
+void __default_longlink_pack(uint32_t _cmdid, uint32_t _seq, const void* _raw, size_t _raw_len, AutoBuffer& _packed) {
     __STNetMsgXpHeader st = {0};
     st.head_length = htonl(sizeof(__STNetMsgXpHeader));
     st.client_version = htonl(sg_client_version);
@@ -168,7 +174,7 @@ void longlink_pack(uint32_t _cmdid, uint32_t _seq, const void* _raw, size_t _raw
     _packed.Seek(0, AutoBuffer::ESeekStart);
 }
 
-void macslink_pack(uint32_t _cmdid, uint32_t _seq, const void* _raw, size_t _raw_len, AutoBuffer& _packed) {
+void __macs_longlink_pack(uint32_t _cmdid, uint32_t _seq, const void* _raw, size_t _raw_len, AutoBuffer& _packed) {
     xgroup2_define(close_log);
     xinfo2(TSF", TEST######################################pack")>> close_log;
     __MACSPacketHeader mp = {0};
@@ -187,15 +193,37 @@ void macslink_pack(uint32_t _cmdid, uint32_t _seq, const void* _raw, size_t _raw
         macs_translated_login_seq = _cmdid;
 }
 
+void __mqtt_longlink_pack(uint32_t _cmdid, uint32_t _seq, const void* _raw, size_t _raw_len, AutoBuffer& _packed) {
+    xgroup2_define(close_log);
+    xinfo2(TSF", TEST######################################pack")>> close_log;
+    __MACSPacketHeader mp = {0};
+    mp.packet_length3 = (BYTE) (_raw_len & 0xff);
+    mp.packet_length2 = (BYTE) (_raw_len >> 8 & 0xff);
+    mp.packet_length1 = (BYTE) (_raw_len >> 16 & 0xff);
+    mp.packet_length0 = (BYTE) (mp.packet_length1 ^ mp.packet_length2 ^ mp.packet_length3);
 
-int longlink_unpack(const AutoBuffer& _packed, uint32_t& _cmdid, uint32_t& _seq, size_t& _package_len, AutoBuffer& _body) {
-    size_t body_len = 0;
-    int ret = __unpack_test(_packed.Ptr(), _packed.Length(), _cmdid,  _seq, _package_len, body_len);
-    if (LONGLINK_UNPACK_OK != ret) return ret;
+    _packed.AllocWrite(sizeof(__MACSPacketHeader) + _raw_len);
+    _packed.Write(&mp, sizeof(mp));
 
-    _body.Write(AutoBuffer::ESeekCur, _packed.Ptr(_package_len-body_len), body_len);
+    if (NULL != _raw) _packed.Write(_raw, _raw_len);
 
-    return ret;
+    _packed.Seek(0, AutoBuffer::ESeekStart);
+    if (_seq == kLongLinkIdentifyCheckerTaskID)
+        macs_translated_login_seq = _cmdid;
+}
+
+void longlink_pack(uint32_t _cmdid, uint32_t _seq, const void* _raw, size_t _raw_len, AutoBuffer& _packed) {
+    switch (sg_long_link_type) {
+        case LONG_LINK_MACS:
+            __macs_longlink_pack(_cmdid,_seq,_raw,_raw_len,_packed);
+            break;
+        case LONG_LINK_MQTT:
+            __mqtt_longlink_pack(_cmdid,_seq,_raw,_raw_len,_packed);
+            break;
+        default:
+            __default_longlink_pack(_cmdid,_seq,_raw,_raw_len,_packed);
+            break;
+    }
 }
 
 static std::string* findTagName(BYTE* data, size_t offset) {
@@ -285,7 +313,18 @@ static uint32_t __unpack_seq(void* _packed, size_t _packed_len) {
     return PUSH_DATA_TASKID;
 }
 
-int macslink_unpack(const AutoBuffer& _packed, uint32_t& _cmdid, uint32_t& _seq, size_t& _package_len, AutoBuffer& _body) {
+
+int __default_longlink_unpack(const AutoBuffer& _packed, uint32_t& _cmdid, uint32_t& _seq, size_t& _package_len, AutoBuffer& _body) {
+    size_t body_len = 0;
+    int ret = __unpack_test(_packed.Ptr(), _packed.Length(), _cmdid,  _seq, _package_len, body_len);
+    if (LONGLINK_UNPACK_OK != ret) return ret;
+
+    _body.Write(AutoBuffer::ESeekCur, _packed.Ptr(_package_len-body_len), body_len);
+
+    return ret;
+}
+
+int __macs_longlink_unpack(const AutoBuffer& _packed, uint32_t& _cmdid, uint32_t& _seq, size_t& _package_len, AutoBuffer& _body) {
 
 
     xgroup2_define(close_log);
@@ -310,6 +349,41 @@ int macslink_unpack(const AutoBuffer& _packed, uint32_t& _cmdid, uint32_t& _seq,
     return ret;
 }
 
+int __mqtt_longlink_unpack(const AutoBuffer& _packed, uint32_t& _cmdid, uint32_t& _seq, size_t& _package_len, AutoBuffer& _body) {
+
+
+    xgroup2_define(close_log);
+    xinfo2(TSF", TEST######################################unpack")>> close_log;
+    size_t body_len = 0;
+    int ret = __unpack_test(_packed.Ptr(), _packed.Length(), _package_len, body_len);
+
+    if (LONGLINK_UNPACK_OK != ret) return ret;
+
+    _body.Write(AutoBuffer::ESeekCur, _packed.Ptr(_package_len-body_len), body_len);
+
+    _cmdid = 0;
+
+    _seq = __unpack_seq(_body.Ptr(), body_len);
+
+    if (_seq == macs_translated_login_seq) {
+        _seq = kLongLinkIdentifyCheckerTaskID;
+        macs_translated_login_seq = INVALID_TRANSLATED_LOGIN_SEQ;
+    }
+    xinfo2(TSF", __unpack_seq; seq = %_", _seq) >> close_log;
+
+    return ret;
+}
+
+int longlink_unpack(const AutoBuffer& _packed, uint32_t& _cmdid, uint32_t& _seq, size_t& _package_len, AutoBuffer& _body) {
+    switch (sg_long_link_type) {
+        case LONG_LINK_MACS:
+            return __macs_longlink_unpack(_packed,_cmdid,_seq,_package_len,_body);
+        case LONG_LINK_MQTT:
+            return __mqtt_longlink_unpack(_packed,_cmdid,_seq,_package_len,_body);
+        default:
+            return __default_longlink_unpack(_packed,_cmdid,_seq,_package_len,_body);
+    }
+}
 
 
 uint32_t longlink_noop_cmdid() {
@@ -326,7 +400,13 @@ uint32_t signal_keep_cmdid() {
 }
 
 void longlink_noop_req_body(AutoBuffer& _body) {
-    _body.Write(MACS_HEARTBEAT_PACKET,MACS_HEARTBEAT_SIZE);
+    switch (sg_long_link_type) {
+        case LONG_LINK_MACS:
+            _body.Write(MACS_HEARTBEAT_PACKET,MACS_HEARTBEAT_SIZE);
+            break;
+        default:
+            break;
+    }
 }
 void longlink_noop_resp_body(AutoBuffer& _body) {
     //_body.write(MACS_HEARTBEAT_PACKET_ANSWER,MACS_HEARTBEAT_SIZE);

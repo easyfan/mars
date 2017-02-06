@@ -39,9 +39,6 @@ typedef unsigned char BYTE;
 void longlink_pack(uint32_t _cmdid, uint32_t _seq, const void* _raw, size_t _raw_len, AutoBuffer& _packed);
 int  longlink_unpack(const AutoBuffer& _packed, uint32_t& _cmdid, uint32_t& _seq, size_t& _package_len, AutoBuffer& _body);
 
-void macslink_pack(uint32_t _cmdid, uint32_t _seq, const void* _raw, size_t _raw_len, AutoBuffer& _packed);
-int  macslink_unpack(const AutoBuffer& _packed, uint32_t& _cmdid, uint32_t& _seq, size_t& _package_len, AutoBuffer& _body);
-
 //heartbeat signal to keep longlink network alive
 uint32_t longlink_noop_cmdid();
 uint32_t longlink_noop_resp_cmdid();
