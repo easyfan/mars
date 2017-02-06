@@ -66,6 +66,10 @@ namespace mars {
         void SetClientVersion(uint32_t _client_version)  {
             sg_client_version = _client_version;
         }
+
+        void SetLonglinkType(uint32_t type) {
+            xinfo2(TSF "SetLonglinkType, type = %_",type);
+        }
     }
 }
 

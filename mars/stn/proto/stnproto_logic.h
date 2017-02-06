@@ -26,6 +26,7 @@ namespace mars {
 namespace stn {
 
 void SetClientVersion(uint32_t _client_version);
+void SetLonglinkType(uint32_t type);
 
 }}
 

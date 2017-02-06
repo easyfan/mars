@@ -326,6 +326,11 @@ JNIEXPORT void JNICALL Java_com_tencent_mars_stn_StnLogic_setClientVersion
 	mars::stn::SetClientVersion(_client_version);
 }
 
+JNIEXPORT void JNICALL Java_com_tencent_mars_stn_StnLogic_setLongLinkType
+  (JNIEnv *_env, jclass, jint _type) {
+	mars::stn::SetLonglinkType(_type);
+}
+
 }
 
 void ExportSTN() {

@@ -146,6 +146,11 @@ public class StnLogic {
 
     public static int TASK_END_SUCCESS = 0;
 
+    //Link Type
+    public static int DEFAULT_LONG_LINK = 0;
+    public static int MACS_LONG_LINK = 1;
+    public static int MQTT_LONG_LINK = 2;
+
 
 
     private static ICallBack callBack = null;
@@ -286,6 +291,8 @@ public class StnLogic {
      */
     public static native void setLonglinkSvrAddr(final String host, final int[] ports, final String debugIP);
     public static        void setLonglinkSvrAddr(final String host, final int[] ports) {setLonglinkSvrAddr(host, ports, null);}
+
+    public static native void setLongLinkType(final int type);
 
     /**
      *
