@@ -46,6 +46,43 @@ static BYTE MACS_HEARTBEAT_PACKET_ANSWER[9] = {'5', '=', '3', '3', 0, '3', '=', 
 static uint32_t macs_translated_login_seq = INVALID_TRANSLATED_LOGIN_SEQ;
 static const uint32_t kLongLinkIdentifyCheckerTaskID = 0xFFFFFFFE;
 
+static const uint32_t MQTT_CONNECT = 1;
+static const uint32_t MQTT_CONNACK = 2;
+static const uint32_t MQTT_PUBLISH = 3;
+static const uint32_t MQTT_PUBACK = 4;
+static const uint32_t MQTT_PUBREC = 5;
+static const uint32_t MQTT_PUBREL = 6;
+static const uint32_t MQTT_PUBCOMP = 7;
+static const uint32_t MQTT_SUBSCRIBE = 8;
+static const uint32_t MQTT_SUBACK = 9;
+static const uint32_t MQTT_UNSUBSCRIBE = 10;
+static const uint32_t MQTT_UNSUBACK = 11;
+static const uint32_t MQTT_PINGREQ = 12;
+static const uint32_t MQTT_PINGRESP = 13;
+static const uint32_t MQTT_DISCONNECT = 14;
+static const uint32_t MQTT_TYPEMAX = 15;
+static const uint32_t MQTT_INVALIDATE = 0xFFFFFFFF;
+
+static const BYTE MQTT_PACKET_TYPES[16] = {
+    MQTT_INVALIDATE,
+    (MQTT_CONNECT << 4),
+    (MQTT_CONNACK << 4),
+    (MQTT_PUBLISH << 4),
+    (MQTT_PUBACK << 4),
+    (MQTT_PUBREC << 4),
+    (MQTT_PUBREL << 4) + 0x02,
+    (MQTT_PUBCOMP << 4),
+    (MQTT_SUBSCRIBE << 4) + 0x02,
+    (MQTT_SUBACK << 4),
+    (MQTT_UNSUBSCRIBE << 4) + 0x02,
+    (MQTT_UNSUBACK << 4),
+    (MQTT_PINGREQ << 4),
+    (MQTT_PINGRESP << 4),
+    (MQTT_DISCONNECT << 4),
+    MQTT_INVALIDATE,
+};
+
+
 #pragma pack(push, 1)
 struct __STNetMsgXpHeader {
     uint32_t    head_length;
@@ -62,6 +99,12 @@ struct __MACSPacketHeader {
     BYTE packet_length1;
     BYTE packet_length2;
     BYTE packet_length3;
+};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+struct __MQTTPacketHeader {
+    BYTE packet_type;
 };
 #pragma pack(pop)
 
@@ -158,6 +201,27 @@ static int __unpack_test(const void* _packed, size_t _packed_len, size_t& _packa
     return LONGLINK_UNPACK_OK;
 }
 
+bool __write_mqtt_packet_type(uint32_t _cmdid, AutoBuffer& _packed) {
+    if (_cmdid < MQTT_TYPEMAX && _cmdid > 0) {
+        BYTE type = MQTT_PACKET_TYPES[_cmdid];
+        _packed.Write(&type, sizeof(type));
+        return true;
+    }
+    return false;
+}
+
+void __write_mqtt_packet_size(const size_t _raw_len, AutoBuffer& _packed) {
+    size_t size = _raw_len;
+    while(size > 0){
+        BYTE byte = size % 128;
+        size = size / 128;
+        if (size > 0) {
+            byte = byte | 128;
+        }
+        _packed.Write(&byte, sizeof(byte));
+    }
+}
+
 void __default_longlink_pack(uint32_t _cmdid, uint32_t _seq, const void* _raw, size_t _raw_len, AutoBuffer& _packed) {
     __STNetMsgXpHeader st = {0};
     st.head_length = htonl(sizeof(__STNetMsgXpHeader));
@@ -196,20 +260,27 @@ void __macs_longlink_pack(uint32_t _cmdid, uint32_t _seq, const void* _raw, size
 void __mqtt_longlink_pack(uint32_t _cmdid, uint32_t _seq, const void* _raw, size_t _raw_len, AutoBuffer& _packed) {
     xgroup2_define(close_log);
     xinfo2(TSF", TEST######################################pack")>> close_log;
-    __MACSPacketHeader mp = {0};
-    mp.packet_length3 = (BYTE) (_raw_len & 0xff);
-    mp.packet_length2 = (BYTE) (_raw_len >> 8 & 0xff);
-    mp.packet_length1 = (BYTE) (_raw_len >> 16 & 0xff);
-    mp.packet_length0 = (BYTE) (mp.packet_length1 ^ mp.packet_length2 ^ mp.packet_length3);
-
-    _packed.AllocWrite(sizeof(__MACSPacketHeader) + _raw_len);
+    size_t size = 0;
+    if (_raw_len > 0) {
+        if (_raw_len < 128)
+            size = 1;
+        else if (_raw_len < 16384)
+            size = 2;
+        else if (_raw_len < 2097152)
+            size = 3;
+        else if (_raw_len < 268435456)
+            size = 4;
+        else
+            return;
+    }
+    _packed.AllocWrite(sizeof(BYTE) + size + _raw_len);
     _packed.Write(&mp, sizeof(mp));
+    __write_mqtt_packet_type(_cmdid,_packed);
+    __write_mqtt_packet_size(_raw_len,_packed);
 
     if (NULL != _raw) _packed.Write(_raw, _raw_len);
 
     _packed.Seek(0, AutoBuffer::ESeekStart);
-    if (_seq == kLongLinkIdentifyCheckerTaskID)
-        macs_translated_login_seq = _cmdid;
 }
 
 void longlink_pack(uint32_t _cmdid, uint32_t _seq, const void* _raw, size_t _raw_len, AutoBuffer& _packed) {
