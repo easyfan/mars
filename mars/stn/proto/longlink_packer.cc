@@ -66,18 +66,18 @@ static const uint32_t MQTT_INVALIDATE = 0xFFFFFFFF;
 static const BYTE MQTT_PACKET_TYPES[16] = {
     MQTT_INVALIDATE,
     (MQTT_CONNECT << 4),
-    (MQTT_CONNACK << 4),
+    MQTT_INVALIDATE,
     (MQTT_PUBLISH << 4),
     (MQTT_PUBACK << 4),
     (MQTT_PUBREC << 4),
     (MQTT_PUBREL << 4) + 0x02,
     (MQTT_PUBCOMP << 4),
     (MQTT_SUBSCRIBE << 4) + 0x02,
-    (MQTT_SUBACK << 4),
+    MQTT_INVALIDATE,
     (MQTT_UNSUBSCRIBE << 4) + 0x02,
-    (MQTT_UNSUBACK << 4),
+    MQTT_INVALIDATE,
     (MQTT_PINGREQ << 4),
-    (MQTT_PINGRESP << 4),
+    MQTT_INVALIDATE,
     (MQTT_DISCONNECT << 4),
     MQTT_INVALIDATE,
 };
@@ -105,6 +105,10 @@ struct __MACSPacketHeader {
 #pragma pack(push, 1)
 struct __MQTTPacketHeader {
     BYTE packet_type;
+    BYTE packet_length0;
+    BYTE packet_length1;
+    BYTE packet_length2;
+    BYTE packet_length3;
 };
 #pragma pack(pop)
 
@@ -144,7 +148,7 @@ static int checkT2Header(__MACSPacketHeader& header) {
     return -1;
 }
 
-static int __unpack_test(const void* _packed, size_t _packed_len, uint32_t& _cmdid, uint32_t& _seq, size_t& _package_len, size_t& _body_len) {
+static int __default_unpack_test(const void* _packed, size_t _packed_len, uint32_t& _cmdid, uint32_t& _seq, size_t& _package_len, size_t& _body_len) {
     __STNetMsgXpHeader st = {0};
     if (_packed_len < sizeof(__STNetMsgXpHeader)) {
         _package_len = 0;
@@ -172,7 +176,7 @@ static int __unpack_test(const void* _packed, size_t _packed_len, uint32_t& _cmd
     return LONGLINK_UNPACK_OK;
 }
 
-static int __unpack_test(const void* _packed, size_t _packed_len, size_t& _package_len, size_t& _body_len) {
+static int __macs_unpack_test(const void* _packed, size_t _packed_len, size_t& _package_len, size_t& _body_len) {
     xgroup2_define(close_log);
     __MACSPacketHeader mp = {0};
     if (_packed_len < sizeof(__MACSPacketHeader)) {
@@ -201,8 +205,67 @@ static int __unpack_test(const void* _packed, size_t _packed_len, size_t& _packa
     return LONGLINK_UNPACK_OK;
 }
 
+static bool __check_mqtt_header(__MQTTPacketHeader header,uint32_t& _seq, size_t& _package_len, size_t& _body_len) {
+
+}
+
+static int __mqtt_unpack_test(const void* _packed, size_t _packed_len, uint32_t& _seq, size_t& _package_len, size_t& _body_len) {
+    xgroup2_define(close_log);
+    BYTE mp = 0;
+    if (_packed_len < sizeof(BYTE)) {
+        _package_len = 0;
+        _body_len = 0;
+        return LONGLINK_UNPACK_CONTINUE;
+    }
+
+    memcpy(&mp, _packed, sizeof(BYTE));
+    size_t headerLength = 0;
+    switch (mp) {
+        case MQTT_PACKET_TYPES[MQTT_CONNACK]:
+            _seq = kLongLinkIdentifyCheckerTaskID;
+        case MQTT_PACKET_TYPES[MQTT_PUBACK]:
+        case MQTT_PACKET_TYPES[MQTT_PUBREC]:
+        case MQTT_PACKET_TYPES[MQTT_PUBREL]:
+        case MQTT_PACKET_TYPES[MQTT_PUBCOMP]:
+        case MQTT_PACKET_TYPES[MQTT_UNSUBACK]:
+            headerLength = 2;
+            _body_len = 2;
+            _package_len = headerLength + _body_len;
+            break;
+        case MQTT_PACKET_TYPES[MQTT_PUBLISH]:
+        case MQTT_PACKET_TYPES[MQTT_SUBACK]:
+            break;
+        case MQTT_PACKET_TYPES[MQTT_PINGRESP]:
+            headerLength = 2;
+            _body_len = 0;
+            _package_len = headerLength + _body_len;
+            break;
+        default:
+            return LONGLINK_UNPACK_FALSE;
+    }
+
+    if (headerLength != 0) {
+        if (_package_len > _packed_len) { return LONGLINK_UNPACK_CONTINUE; }
+        return LONGLINK_UNPACK_OK;
+    }
+
+    for(size_t i = 2; i < 5; i++) {
+        if (_packed_len < (i * sizeof(BYTE))) {
+            _package_len = 0;
+            _body_len = 0;
+            return LONGLINK_UNPACK_CONTINUE;
+        }
+        __MQTTPacketHeader header = {0};
+        memcpy(&header, _packed, i * sizeof(BYTE));
+        if (__check_mqtt_header(header,_seq,_package_len,_body_len))
+            return LONGLINK_UNPACK_OK;
+    }
+
+    return LONGLINK_UNPACK_FALSE;
+}
+
 bool __write_mqtt_packet_type(uint32_t _cmdid, AutoBuffer& _packed) {
-    if (_cmdid < MQTT_TYPEMAX && _cmdid > 0) {
+    if (_cmdid < MQTT_TYPEMAX && _cmdid > 0 && MQTT_PACKET_TYPES[_cmdid] != MQTT_INVALIDATE) {
         BYTE type = MQTT_PACKET_TYPES[_cmdid];
         _packed.Write(&type, sizeof(type));
         return true;
@@ -275,7 +338,8 @@ void __mqtt_longlink_pack(uint32_t _cmdid, uint32_t _seq, const void* _raw, size
     }
     _packed.AllocWrite(sizeof(BYTE) + size + _raw_len);
     _packed.Write(&mp, sizeof(mp));
-    __write_mqtt_packet_type(_cmdid,_packed);
+    if (!__write_mqtt_packet_type(_cmdid,_packed))
+        return;
     __write_mqtt_packet_size(_raw_len,_packed);
 
     if (NULL != _raw) _packed.Write(_raw, _raw_len);
@@ -387,7 +451,7 @@ static uint32_t __unpack_seq(void* _packed, size_t _packed_len) {
 
 int __default_longlink_unpack(const AutoBuffer& _packed, uint32_t& _cmdid, uint32_t& _seq, size_t& _package_len, AutoBuffer& _body) {
     size_t body_len = 0;
-    int ret = __unpack_test(_packed.Ptr(), _packed.Length(), _cmdid,  _seq, _package_len, body_len);
+    int ret = __default_unpack_test(_packed.Ptr(), _packed.Length(), _cmdid,  _seq, _package_len, body_len);
     if (LONGLINK_UNPACK_OK != ret) return ret;
 
     _body.Write(AutoBuffer::ESeekCur, _packed.Ptr(_package_len-body_len), body_len);
@@ -401,7 +465,7 @@ int __macs_longlink_unpack(const AutoBuffer& _packed, uint32_t& _cmdid, uint32_t
     xgroup2_define(close_log);
     xinfo2(TSF", TEST######################################unpack")>> close_log;
     size_t body_len = 0;
-    int ret = __unpack_test(_packed.Ptr(), _packed.Length(), _package_len, body_len);
+    int ret = __macs_unpack_test(_packed.Ptr(), _packed.Length(), _package_len, body_len);
 
     if (LONGLINK_UNPACK_OK != ret) return ret;
 
@@ -426,20 +490,13 @@ int __mqtt_longlink_unpack(const AutoBuffer& _packed, uint32_t& _cmdid, uint32_t
     xgroup2_define(close_log);
     xinfo2(TSF", TEST######################################unpack")>> close_log;
     size_t body_len = 0;
-    int ret = __unpack_test(_packed.Ptr(), _packed.Length(), _package_len, body_len);
+    int ret = __mqtt_unpack_test(_packed.Ptr(), _packed.Length(),_seq, _package_len, body_len);
 
     if (LONGLINK_UNPACK_OK != ret) return ret;
 
     _body.Write(AutoBuffer::ESeekCur, _packed.Ptr(_package_len-body_len), body_len);
 
     _cmdid = 0;
-
-    _seq = __unpack_seq(_body.Ptr(), body_len);
-
-    if (_seq == macs_translated_login_seq) {
-        _seq = kLongLinkIdentifyCheckerTaskID;
-        macs_translated_login_seq = INVALID_TRANSLATED_LOGIN_SEQ;
-    }
     xinfo2(TSF", __unpack_seq; seq = %_", _seq) >> close_log;
 
     return ret;
