@@ -47,38 +47,38 @@ static uint32_t macs_translated_login_seq = INVALID_TRANSLATED_LOGIN_SEQ;
 static const uint32_t kLongLinkIdentifyCheckerTaskID = 0xFFFFFFFE;
 static const uint32_t kNoopTaskID = 0xFFFFFFFF;
 
-static const uint32_t MQTT_CONNECT = 1;
-static const uint32_t MQTT_CONNACK = 2;
-static const uint32_t MQTT_PUBLISH = 3;
-static const uint32_t MQTT_PUBACK = 4;
-static const uint32_t MQTT_PUBREC = 5;
-static const uint32_t MQTT_PUBREL = 6;
-static const uint32_t MQTT_PUBCOMP = 7;
-static const uint32_t MQTT_SUBSCRIBE = 8;
-static const uint32_t MQTT_SUBACK = 9;
-static const uint32_t MQTT_UNSUBSCRIBE = 10;
-static const uint32_t MQTT_UNSUBACK = 11;
-static const uint32_t MQTT_PINGREQ = 12;
-static const uint32_t MQTT_PINGRESP = 13;
-static const uint32_t MQTT_DISCONNECT = 14;
-static const uint32_t MQTT_TYPEMAX = 15;
+static const BYTE MQTT_CONNECT = 1;
+static const BYTE MQTT_CONNACK = 2;
+static const BYTE MQTT_PUBLISH = 3;
+static const BYTE MQTT_PUBACK = 4;
+static const BYTE MQTT_PUBREC = 5;
+static const BYTE MQTT_PUBREL = 6;
+static const BYTE MQTT_PUBCOMP = 7;
+static const BYTE MQTT_SUBSCRIBE = 8;
+static const BYTE MQTT_SUBACK = 9;
+static const BYTE MQTT_UNSUBSCRIBE = 10;
+static const BYTE MQTT_UNSUBACK = 11;
+static const BYTE MQTT_PINGREQ = 12;
+static const BYTE MQTT_PINGRESP = 13;
+static const BYTE MQTT_DISCONNECT = 14;
+static const BYTE MQTT_TYPEMAX = 15;
 static const BYTE MQTT_INVALIDATE = 0xFF;
 
 static const BYTE MQTT_PACKET_TYPES[16] = {
     MQTT_INVALIDATE,
-    (MQTT_CONNACK << 4),
     (MQTT_CONNECT << 4),
+    MQTT_INVALIDATE,//(MQTT_CONNACK << 4),
     (MQTT_PUBLISH << 4),
     (MQTT_PUBACK << 4),
     (MQTT_PUBREC << 4),
     (MQTT_PUBREL << 4) + 0x02,
     (MQTT_PUBCOMP << 4),
     (MQTT_SUBSCRIBE << 4) + 0x02,
-    (MQTT_SUBACK << 4),
+    MQTT_INVALIDATE,//(MQTT_SUBACK << 4),
     (MQTT_UNSUBSCRIBE << 4) + 0x02,
-    (MQTT_UNSUBACK << 4),
+    MQTT_INVALIDATE,//(MQTT_UNSUBACK << 4),
     (MQTT_PINGREQ << 4),
-    (MQTT_PINGRESP << 4),
+    MQTT_INVALIDATE,//(MQTT_PINGRESP << 4),
     (MQTT_DISCONNECT << 4),
     MQTT_INVALIDATE,
 };
