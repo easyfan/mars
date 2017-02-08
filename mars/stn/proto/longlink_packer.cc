@@ -45,6 +45,7 @@ static BYTE MACS_HEARTBEAT_PACKET[9] = {'5', '=', '3', '3', 0, '3', '=', '2', 0}
 static BYTE MACS_HEARTBEAT_PACKET_ANSWER[9] = {'5', '=', '3', '3', 0, '3', '=', '3', 0};
 static uint32_t macs_translated_login_seq = INVALID_TRANSLATED_LOGIN_SEQ;
 static const uint32_t kLongLinkIdentifyCheckerTaskID = 0xFFFFFFFE;
+static const uint32_t kNoopTaskID = 0xFFFFFFFF;
 
 static const uint32_t MQTT_CONNECT = 1;
 static const uint32_t MQTT_CONNACK = 2;
@@ -61,23 +62,23 @@ static const uint32_t MQTT_PINGREQ = 12;
 static const uint32_t MQTT_PINGRESP = 13;
 static const uint32_t MQTT_DISCONNECT = 14;
 static const uint32_t MQTT_TYPEMAX = 15;
-static const uint32_t MQTT_INVALIDATE = 0xFFFFFFFF;
+static const BYTE MQTT_INVALIDATE = 0xFF;
 
 static const BYTE MQTT_PACKET_TYPES[16] = {
     MQTT_INVALIDATE,
+    (MQTT_CONNACK << 4),
     (MQTT_CONNECT << 4),
-    MQTT_INVALIDATE,
     (MQTT_PUBLISH << 4),
     (MQTT_PUBACK << 4),
     (MQTT_PUBREC << 4),
     (MQTT_PUBREL << 4) + 0x02,
     (MQTT_PUBCOMP << 4),
     (MQTT_SUBSCRIBE << 4) + 0x02,
-    MQTT_INVALIDATE,
+    (MQTT_SUBACK << 4),
     (MQTT_UNSUBSCRIBE << 4) + 0x02,
-    MQTT_INVALIDATE,
+    (MQTT_UNSUBACK << 4),
     (MQTT_PINGREQ << 4),
-    MQTT_INVALIDATE,
+    (MQTT_PINGRESP << 4),
     (MQTT_DISCONNECT << 4),
     MQTT_INVALIDATE,
 };
@@ -109,6 +110,12 @@ struct __MQTTPacketHeader {
     BYTE packet_length1;
     BYTE packet_length2;
     BYTE packet_length3;
+};
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+struct __MQTTPacketBody {
+    uint32_t id;
 };
 #pragma pack(pop)
 
@@ -205,37 +212,87 @@ static int __macs_unpack_test(const void* _packed, size_t _packed_len, size_t& _
     return LONGLINK_UNPACK_OK;
 }
 
-static bool __check_mqtt_header(__MQTTPacketHeader header,uint32_t& _seq, size_t& _package_len, size_t& _body_len) {
+static bool __check_mqtt_header(__MQTTPacketHeader header,size_t& _package_len, size_t& _body_len, size_t& _header_len) {
+    _header_len = 1;
+    _body_len = 0;
+    _package_len = 0;
+    size_t multiplier = 1;
+    BYTE* sizePtr = &(header.packet_length0);
+    for (int i = 0 ; i < 4 ; i++) {
+        BYTE first = *sizePtr;
+        if ((first & 0x80) != 0) {
+            if (i == 3) {
+                _body_len = 0;
+                _package_len = 0;
+                return false;
+            }
+            BYTE second = *(sizePtr+1);
+            if (second == 0) {
+                _body_len = 0;
+                _package_len = 0;
+                return false;
+            }
+        }
+        _body_len += (first & 0x7F) * multiplier;
+        _header_len += 1;
 
+        if ((first & 0x80) == 0)
+        {
+            _package_len = _header_len + _body_len;
+            return true;
+        }
+        multiplier *= 0x80;
+        sizePtr++;
+    }
+
+    _body_len = 0;
+    _package_len = 0;
+    return false;
+    /*
+    if ( ((__MQTTPacketHeader.packet_length0 & 0X80) != 0 && __MQTTPacketHeader.packet_length1 == 0) ||
+        ((__MQTTPacketHeader.packet_length1 & 0X80) != 0 && __MQTTPacketHeader.packet_length2 == 0) ||
+        ((__MQTTPacketHeader.packet_length2 & 0X80) != 0 && __MQTTPacketHeader.packet_length3 == 0))
+        return false;
+    */
 }
 
-static int __mqtt_unpack_test(const void* _packed, size_t _packed_len, uint32_t& _seq, size_t& _package_len, size_t& _body_len) {
+static int __mqtt_unpack_test(const void* _packed, size_t _packed_len, uint32_t& _cmdid, uint32_t& _seq, size_t& _package_len, size_t& _body_len) {
     xgroup2_define(close_log);
-    BYTE mp = 0;
+    _package_len = 0;
+    _body_len = 0;
+    _cmdid = 0;
+    _seq = 0;
     if (_packed_len < sizeof(BYTE)) {
-        _package_len = 0;
-        _body_len = 0;
         return LONGLINK_UNPACK_CONTINUE;
     }
 
+    BYTE mp = 0;
+
     memcpy(&mp, _packed, sizeof(BYTE));
     size_t headerLength = 0;
-    switch (mp) {
-        case MQTT_PACKET_TYPES[MQTT_CONNACK]:
+    bool seqConfirmed = true;
+    switch (mp >> 4) {
+        case MQTT_CONNACK:
             _seq = kLongLinkIdentifyCheckerTaskID;
-        case MQTT_PACKET_TYPES[MQTT_PUBACK]:
-        case MQTT_PACKET_TYPES[MQTT_PUBREC]:
-        case MQTT_PACKET_TYPES[MQTT_PUBREL]:
-        case MQTT_PACKET_TYPES[MQTT_PUBCOMP]:
-        case MQTT_PACKET_TYPES[MQTT_UNSUBACK]:
             headerLength = 2;
             _body_len = 2;
             _package_len = headerLength + _body_len;
             break;
-        case MQTT_PACKET_TYPES[MQTT_PUBLISH]:
-        case MQTT_PACKET_TYPES[MQTT_SUBACK]:
+        case MQTT_UNSUBACK:
+            seqConfirmed = false;
+            headerLength = 2;
+            _body_len = 2;
+            _package_len = headerLength + _body_len;
             break;
-        case MQTT_PACKET_TYPES[MQTT_PINGRESP]:
+        case MQTT_PUBLISH:
+            _seq = PUSH_DATA_TASKID;
+            break;
+        case MQTT_SUBACK:
+            seqConfirmed = false;
+            break;
+        case MQTT_PINGRESP:
+            _seq = kNoopTaskID;
+            _cmdid = NOOP_CMDID;
             headerLength = 2;
             _body_len = 0;
             _package_len = headerLength + _body_len;
@@ -246,10 +303,15 @@ static int __mqtt_unpack_test(const void* _packed, size_t _packed_len, uint32_t&
 
     if (headerLength != 0) {
         if (_package_len > _packed_len) { return LONGLINK_UNPACK_CONTINUE; }
+        if (!seqConfirmed) {
+            __MQTTPacketBody packet = {0};
+            memcpy(&packet, ((BYTE*)_packed)+headerLength, sizeof(__MQTTPacketBody));
+            _seq = ntohl(packet.id);
+        }
         return LONGLINK_UNPACK_OK;
     }
 
-    for(size_t i = 2; i < 5; i++) {
+    for(size_t i = 2; i < 6; i++) {
         if (_packed_len < (i * sizeof(BYTE))) {
             _package_len = 0;
             _body_len = 0;
@@ -257,8 +319,15 @@ static int __mqtt_unpack_test(const void* _packed, size_t _packed_len, uint32_t&
         }
         __MQTTPacketHeader header = {0};
         memcpy(&header, _packed, i * sizeof(BYTE));
-        if (__check_mqtt_header(header,_seq,_package_len,_body_len))
+        if (__check_mqtt_header(header,_package_len,_body_len,headerLength)) {
+            if (_package_len > _packed_len) { return LONGLINK_UNPACK_CONTINUE; }
+            if (!seqConfirmed) {
+                __MQTTPacketBody packet = {0};
+                memcpy(&packet, ((BYTE*)_packed)+headerLength, sizeof(__MQTTPacketBody));
+                _seq = ntohl(packet.id);
+            }
             return LONGLINK_UNPACK_OK;
+        }
     }
 
     return LONGLINK_UNPACK_FALSE;
@@ -337,7 +406,6 @@ void __mqtt_longlink_pack(uint32_t _cmdid, uint32_t _seq, const void* _raw, size
             return;
     }
     _packed.AllocWrite(sizeof(BYTE) + size + _raw_len);
-    _packed.Write(&mp, sizeof(mp));
     if (!__write_mqtt_packet_type(_cmdid,_packed))
         return;
     __write_mqtt_packet_size(_raw_len,_packed);
@@ -490,7 +558,7 @@ int __mqtt_longlink_unpack(const AutoBuffer& _packed, uint32_t& _cmdid, uint32_t
     xgroup2_define(close_log);
     xinfo2(TSF", TEST######################################unpack")>> close_log;
     size_t body_len = 0;
-    int ret = __mqtt_unpack_test(_packed.Ptr(), _packed.Length(),_seq, _package_len, body_len);
+    int ret = __mqtt_unpack_test(_packed.Ptr(), _packed.Length(),_cmdid,_seq, _package_len, body_len);
 
     if (LONGLINK_UNPACK_OK != ret) return ret;
 
