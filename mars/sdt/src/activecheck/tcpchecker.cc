@@ -121,11 +121,11 @@ void TcpChecker::__DoCheck(CheckRequestProfile& _check_request) {
 void TcpChecker::__NoopReq(AutoBuffer& _noop_send) {
 	AutoBuffer noop_body;
 	longlink_noop_req_body(noop_body);
-	macslink_pack(longlink_noop_cmdid(), getNoopTaskID(), noop_body.Ptr(), noop_body.Length(), _noop_send);
+	longlink_pack(longlink_noop_cmdid(), getNoopTaskID(), noop_body.Ptr(), noop_body.Length(), _noop_send);
 }
 
 bool TcpChecker::__NoopResp(const AutoBuffer& _packed, uint32_t& _cmdid, uint32_t& _seq, size_t& _package_len, AutoBuffer& _body) {
-	int unpackret = macslink_unpack(_packed, _cmdid, _seq, _package_len, _body);
+	int unpackret = longlink_unpack(_packed, _cmdid, _seq, _package_len, _body);
 	if (unpackret == LONGLINK_UNPACK_OK) {
 		if (_cmdid == longlink_noop_resp_cmdid() && _seq == getNoopTaskID()) {
 			longlink_noop_resp_body(_body);
