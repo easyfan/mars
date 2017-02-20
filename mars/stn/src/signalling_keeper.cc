@@ -130,7 +130,7 @@ void SignallingKeeper::__SendSignallingBuffer()
         {
             udp_client_.SetIpPort(ip_, port_);
             AutoBuffer buffer;
-            macslink_pack(signal_keep_cmdid(), 0, NULL, 0, buffer);
+            longlink_pack(signal_keep_cmdid(), 0, NULL, 0, buffer);
             udp_client_.SendAsync(buffer.Ptr(), buffer.Length());
         }
     } else {
