@@ -4,6 +4,8 @@
  */
 package com.tencent.mars.stn;
 
+import android.content.res.AssetManager;
+
 import com.tencent.mars.Mars;
 
 import java.io.ByteArrayOutputStream;
@@ -293,6 +295,8 @@ public class StnLogic {
     public static        void setLonglinkSvrAddr(final String host, final int[] ports) {setLonglinkSvrAddr(host, ports, null);}
 
     public static native void setLongLinkType(final int type);
+    public static native void initAssetMgr(AssetManager mgr);
+    public static native void loadKSFromAssets(String ksPathName);
 
     /**
      *

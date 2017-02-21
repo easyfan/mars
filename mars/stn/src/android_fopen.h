@@ -17,7 +17,7 @@ extern "C" {
 
 void android_fopen_set_asset_manager(AAssetManager* manager);
 FILE* android_fopen(const char* fname, const char* mode);
-static int android_read(void* cookie, char* buf, int size);
+//static int android_read(void* cookie, char* buf, int size);
 //#define fopen(name, mode) android_fopen(name, mode)
 
 #ifdef __cplusplus

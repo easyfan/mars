@@ -39,8 +39,10 @@
 #include "stn/src/signalling_keeper.h"
 #include "stn/config.h"
 #include "stn/proto/stnproto_logic.h"
+#include "stn/src/android_fopen.h"
 
 #include <android/log.h>
+#include <android/asset_manager_jni.h>
 
 using namespace mars::stn;
 
@@ -331,6 +333,23 @@ JNIEXPORT void JNICALL Java_com_tencent_mars_stn_StnLogic_setLongLinkType
 	mars::stn::SetLonglinkType(_type);
 }
 
+JNIEXPORT void JNICALL Java_com_tencent_mars_stn_StnLogic_initAssetMgr
+		(JNIEnv *_env, jclass, jobject assetManager) {
+	AAssetManager *mgr = AAssetManager_fromJava(_env, assetManager);
+	android_fopen_set_asset_manager(mgr);
+}
+
+JNIEXPORT void JNICALL Java_com_tencent_mars_stn_StnLogic_loadKSFromAssets
+		(JNIEnv *_env, jclass, jstring AssetsPathToKS) {
+	const char *path = _env->GetStringUTFChars(AssetsPathToKS, 0);
+	FILE* testFile = fopen(path,"r");
+	if (testFile != NULL) {
+		__android_log_print(ANDROID_LOG_WARN,"loadFromAssets","File opened.");
+		char buffer[50];
+		fread(buffer,0,49,testFile);
+		__android_log_print(ANDROID_LOG_WARN,"loadFromAssets","File loaded.");
+	}
+}
 }
 
 void ExportSTN() {

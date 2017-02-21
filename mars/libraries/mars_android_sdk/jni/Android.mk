@@ -85,7 +85,7 @@ LOCAL_SRC_FILES := shortlink_packer.cc longlink_packer.cc JNI_OnLoad.cc import.c
 LOCAL_STATIC_LIBRARIES += stn sdt appcomm baseevent comm crypto mmjpeg jpeg_static
 LOCAL_SHARED_LIBRARIES += marsxlog
 
-LOCAL_LDLIBS += -llog -lz -ljnigraphics 
+LOCAL_LDLIBS += -llog -lz -ljnigraphics -landroid
 #LOCAL_CPPFLAGS += -frtti
 #LOCAL_CFLAGS += -Wextra -Wall -Wno-error=conversion -Wno-error=sign-conversion -Werror=sign-compare 
 #LOCAL_CFLAGS += -Wno-unused-parameter -Wno-missing-field-initializers 
