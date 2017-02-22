@@ -695,9 +695,16 @@ void NetCore::__OnTimerCheckSuc() {
 #ifdef USE_LONG_LINK
     xinfo2("netsource timercheck disconnect longlink");
     longlink_task_manager_->LongLinkChannel().Disconnect(LongLink::kTimeCheckSucc);
-    
+
 #endif
 
+}
+
+void NetCore::setKSFile(FILE* ksFile) {
+#ifdef USE_LONG_LINK
+    xinfo2("##################NetCore::setKSFile");
+    longlink_task_manager_->LongLinkChannel().setKSFile(ksFile);
+#endif
 }
 
 VARIABLE_IS_NOT_USED static int export_openssl_mt_var = export_openssl_mutithread_support();

@@ -36,6 +36,7 @@
 #include "mars/comm/platform_comm.h"
 #include "mars/comm/messagequeue/message_queue.h"
 #include "mars/baseevent/baseprjevent.h"
+#include <stdio.h>
 
 #if defined(__ANDROID__) || defined(__APPLE__)
 #include "mars/comm/socket/getsocktcpinfo.h"
@@ -126,6 +127,13 @@ class LongLinkConnectObserver : public MComplexConnect {
 
 }
 
+void LongLink::setKSFile(FILE* ksFile) {
+    ksFile_ = ksFile;
+    char buffer[50];
+    fread(buffer,0,49,ksFile);
+    xwarn2(TSF"##################LongLink::setKSFile, with file:%_",buffer);
+}
+
 LongLink::LongLink(NetSource& _netsource, MessageQueue::MessageQueue_t _messagequeueid)
     : asyncreg_(MessageQueue::InstallAsyncHandler(_messagequeueid))
     , netsource_(_netsource)
@@ -137,6 +145,7 @@ LongLink::LongLink(NetSource& _netsource, MessageQueue::MessageQueue_t _messageq
 #endif
 	, connectstatus_(kConnectIdle)
 	, disconnectinternalcode_(kNone)
+    , ksFile_(NULL)
 {}
 
 LongLink::~LongLink() {

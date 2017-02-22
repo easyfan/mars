@@ -21,6 +21,7 @@
 #ifndef STN_SRC_LONGLINK_H_
 #define STN_SRC_LONGLINK_H_
 
+#include <stdio.h>
 #include <string>
 #include <list>
 
@@ -139,6 +140,7 @@ class LongLink {
 
     ConnectProfile  Profile() const   { return conn_profile_; }
     tickcount_t&    GetLastRecvTime() { return lastrecvtime_; }
+	void    setKSFile(FILE* ksFile);
     
   private:
     LongLink(const LongLink&);
@@ -184,6 +186,7 @@ class LongLink {
     LongLinkIdentifyChecker         identifychecker_;
     std::list<LongLinkSendData>     lstsenddata_;
     tickcount_t                     lastrecvtime_;
+	FILE*							ksFile_;
     
 #ifdef ANDROID
     WakeUpLock                      wakelock_;

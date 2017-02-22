@@ -40,11 +40,16 @@ TcpClientFSM::TcpClientFSM(const sockaddr& _addr):addr_(&_addr) {
     sock_ = INVALID_SOCKET;
     start_connecttime_ = 0;
     end_connecttime_ = 0;
+    ksFile_ = NULL;
 }
 
 TcpClientFSM::~TcpClientFSM() {
     Close(false);
     xassert2(INVALID_SOCKET == sock_, "%d", sock_);
+}
+
+void TcpClientFSM::KsFile(FILE * ksFile) {
+    ksFile_ = ksFile;
 }
 
 void TcpClientFSM::RequestSend() {

@@ -275,6 +275,20 @@ JNIEXPORT void JNICALL Java_com_tencent_mars_stn_StnLogic_clearTask
 	ClearTasks();
 }
 
+//DEFINE_FIND_STATIC_METHOD(KJava2C_loadKSFromAssets, KNetJava2C, "loadKSFromAssets", "()V")
+//JNIEXPORT void JNICALL Java_com_tencent_mars_stn_StnLogic_loadKSFromAssets
+//		(JNIEnv *_env, jclass, jstring AssetsPathToKS) {
+//	const char *path = _env->GetStringUTFChars(AssetsPathToKS, 0);
+//	FILE* testFile = fopen(path,"r");
+//	if (testFile != NULL) {
+////		__android_log_print(ANDROID_LOG_WARN,"loadFromAssets","File opened.");
+////		char buffer[50];
+////		fread(buffer,0,49,testFile);
+////		__android_log_print(ANDROID_LOG_WARN,"loadFromAssets","File loaded.");
+//		setKSFile(testFile);
+//	}
+//}
+
 /*
  * Class:     com_tencent_mars_stn_StnLogic_Java2C
  * Method:    makesureLongLinkConnected
@@ -344,10 +358,11 @@ JNIEXPORT void JNICALL Java_com_tencent_mars_stn_StnLogic_loadKSFromAssets
 	const char *path = _env->GetStringUTFChars(AssetsPathToKS, 0);
 	FILE* testFile = fopen(path,"r");
 	if (testFile != NULL) {
-		__android_log_print(ANDROID_LOG_WARN,"loadFromAssets","File opened.");
-		char buffer[50];
-		fread(buffer,0,49,testFile);
-		__android_log_print(ANDROID_LOG_WARN,"loadFromAssets","File loaded.");
+//		__android_log_print(ANDROID_LOG_WARN,"loadFromAssets","File opened.");
+//		char buffer[50];
+//		fread(buffer,0,49,testFile);
+//		__android_log_print(ANDROID_LOG_WARN,"loadFromAssets","File loaded.");
+		mars::stn::setKSFile(testFile);
 	}
 }
 }

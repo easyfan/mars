@@ -32,6 +32,7 @@
 
 #include "netsource_timercheck.h"
 #include "net_check_logic.h"
+#include <stdio.h>
 
 #ifdef USE_LONG_LINK
 #include "longlink.h"
@@ -75,6 +76,7 @@ class NetCore {
     void    MakeSureLongLinkConnect();
     bool    LongLinkIsConnected();
     void    OnNetworkChange();
+    void    setKSFile(FILE* ksFile);
 
 #ifdef USE_LONG_LINK
     SignallingKeeper&    GetSignallingKeeper() {return *signalling_keeper_;}

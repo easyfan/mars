@@ -61,7 +61,10 @@ static const std::string kLibName = "stn";
     {\
     	ret = stn_ptr->func;\
     }
-
+void setKSFile(FILE* ksFile) {
+	xinfo2("##################,mars::stn::setKSFile");
+	STN_WEAK_CALL(setKSFile(ksFile));
+}
 static void onCreate() {
 #if !UWP && !defined(WIN32)
     signal(SIGPIPE, SIG_IGN);
@@ -70,7 +73,6 @@ static void onCreate() {
     xinfo2(TSF"stn oncreate");
     SINGLETON_STRONG(ActiveLogic);
     NetCore::Singleton::Instance();
-
 }
 
 static void onDestroy() {

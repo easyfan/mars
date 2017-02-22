@@ -25,6 +25,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <stdio.h>
 
 #include "mars/comm/autobuffer.h"
 #include "mars/stn/stn.h"
@@ -128,6 +129,7 @@ namespace stn{
     // noop is used to keep longlink conected
     // get noop taskid
     uint32_t getNoopTaskID();
+    void setKSFile(FILE* ksFile);
 }}
 
 #endif /* MARS_STN_LOGIC_H_ */

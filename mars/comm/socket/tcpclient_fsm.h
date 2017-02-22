@@ -24,6 +24,7 @@
 #include "autobuffer.h"
 #include "socket/unix_socket.h"
 #include "socket/socket_address.h"
+#include <stdio.h>
 
 class XLogger;
 class SocketSelect;
@@ -54,6 +55,7 @@ class TcpClientFSM {
     const sockaddr& Address() const;
     const char* IP() const;
     uint16_t Port() const;
+    void KsFile(FILE * ksFile);
 
     void Close(bool _notify = true);
     bool RemoteClose() const;
@@ -89,6 +91,7 @@ class TcpClientFSM {
 
 
   protected:
+    FILE * ksFile_;
     TSocketStatus status_;
     TSocketStatus last_status_;
     int           error_;
