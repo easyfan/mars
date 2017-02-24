@@ -702,7 +702,8 @@ void NetCore::__OnTimerCheckSuc() {
 
 void NetCore::setKSFile(FILE* ksFile) {
 #ifdef USE_LONG_LINK
-    xinfo2("##################NetCore::setKSFile");
+    xgroup2_define(close_log);
+    xinfo2("##################NetCore::setKSFile") >> close_log;
     longlink_task_manager_->LongLinkChannel().setKSFile(ksFile);
 #endif
 }

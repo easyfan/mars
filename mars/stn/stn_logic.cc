@@ -62,7 +62,8 @@ static const std::string kLibName = "stn";
     	ret = stn_ptr->func;\
     }
 void setKSFile(FILE* ksFile) {
-	xinfo2("##################,mars::stn::setKSFile");
+	xgroup2_define(close_log);
+	xinfo2(TSF"##################,mars::stn::setKSFile") >> close_log;
 	STN_WEAK_CALL(setKSFile(ksFile));
 }
 static void onCreate() {

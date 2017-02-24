@@ -128,10 +128,11 @@ class LongLinkConnectObserver : public MComplexConnect {
 }
 
 void LongLink::setKSFile(FILE* ksFile) {
+    xgroup2_define(close_log);
     ksFile_ = ksFile;
     char buffer[50];
     fread(buffer,0,49,ksFile);
-    xwarn2(TSF"##################LongLink::setKSFile, with file:%_",buffer);
+    xwarn2(TSF"##################LongLink::setKSFile, with file:%_",buffer) >> close_log;
 }
 
 LongLink::LongLink(NetSource& _netsource, MessageQueue::MessageQueue_t _messagequeueid)
