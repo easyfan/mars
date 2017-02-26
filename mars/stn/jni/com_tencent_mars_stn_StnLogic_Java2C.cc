@@ -356,8 +356,10 @@ JNIEXPORT void JNICALL Java_com_tencent_mars_stn_StnLogic_initAssetMgr
 JNIEXPORT void JNICALL Java_com_tencent_mars_stn_StnLogic_loadKSFromAssets
 		(JNIEnv *_env, jclass, jstring AssetsPathToKS) {
 	xgroup2_define(close_log);
+	xinfo2(TSF"##################Java_com_tencent_mars_stn_StnLogic_loadKSFromAssets")>> close_log;
 	const char *path = _env->GetStringUTFChars(AssetsPathToKS, 0);
-	FILE* testFile = fopen(path,"r");
+	xinfo2(TSF"##################Java_com_tencent_mars_stn_StnLogic_loadKSFromAssets，with file: %_",AssetsPathToKS)>> close_log;
+	FILE* testFile = android_fopen(path,"r");
 	if (testFile != NULL) {
 //		__android_log_print(ANDROID_LOG_WARN,"loadFromAssets","File opened.");
 //		char buffer[50];

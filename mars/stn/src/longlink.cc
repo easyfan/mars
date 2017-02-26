@@ -440,7 +440,7 @@ SOCKET LongLink::__RunConnect(ConnectProfile& _conn_profile) {
     
     LongLinkConnectObserver connect_observer(*this, ip_items);
     ComplexConnect com_connect(kLonglinkConnTimeout, kLonglinkConnInteral, kLonglinkConnInteral, kLonglinkConnMax);
-    SOCKET sock = com_connect.ConnectImpatient(vecaddr, connectbreak_, &connect_observer);
+    SOCKET sock = com_connect.ConnectImpatient(vecaddr, connectbreak_, &connect_observer,ksFile_);
     
     _conn_profile.conn_time = gettickcount();
     _conn_profile.conn_errcode = com_connect.ErrorCode();

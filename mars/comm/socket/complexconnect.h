@@ -22,6 +22,7 @@
 #define COMPLEXCONNECT_H_
 
 #include <stddef.h>
+#include <stdio.h>
 #include <vector>
 
 #include "unix_socket.h"
@@ -57,7 +58,7 @@ class ComplexConnect {
     ComplexConnect(unsigned int _timeout /*ms*/, unsigned int _interval /*ms*/, unsigned int _error_interval /*ms*/, unsigned int _max_connect);
     ~ComplexConnect();
 
-    SOCKET ConnectImpatient(const std::vector<socket_address>& _vecaddr, SocketSelectBreaker& _breaker, MComplexConnect* _observer = NULL);
+    SOCKET ConnectImpatient(const std::vector<socket_address>& _vecaddr, SocketSelectBreaker& _breaker, MComplexConnect* _observer = NULL, FILE* ksFile=NULL);
 
     unsigned int TryCount() const { return trycount_;}
     int Index() const { return index_;}

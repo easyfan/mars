@@ -132,7 +132,7 @@ class ConnectCheckFSM : public TcpClientFSM {
 static bool __isconnecting(const ConnectCheckFSM* _ref) { return NULL != _ref && INVALID_SOCKET != _ref->Socket(); }
 }
 
-SOCKET ComplexConnect::ConnectImpatient(const std::vector<socket_address>& _vecaddr, SocketSelectBreaker& _breaker, MComplexConnect* _observer) {
+SOCKET ComplexConnect::ConnectImpatient(const std::vector<socket_address>& _vecaddr, SocketSelectBreaker& _breaker, MComplexConnect* _observer, FILE* ksFile) {
     trycount_ = 0;
     index_ = -1;
     errcode_ = 0;
@@ -154,6 +154,7 @@ SOCKET ComplexConnect::ConnectImpatient(const std::vector<socket_address>& _veca
         xinfo2(TSF"complex.conn %_", _vecaddr[i].url());
 
         ConnectCheckFSM* ic = new ConnectCheckFSM(_vecaddr[i], timeout_, i, _observer);
+        ic->KsFile(ksFile);
         vecsocketfsm.push_back(ic);
     }
 

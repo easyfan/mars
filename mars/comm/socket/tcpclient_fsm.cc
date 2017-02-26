@@ -204,6 +204,11 @@ void TcpClientFSM::PreConnectSelect(SocketSelect& _sel, XLogger& _log) {
     start_connecttime_ = gettickcount();
 
     int ret = connect(sock_, &(addr_.address()), addr_.address_length());
+    xinfo2(TSF"####################TcpClientFSM::PreConnectSelect:%_, ", ksFile_) >> _log;
+
+    if (ksFile_ != NULL) {
+        xinfo2(TSF"####################TcpClientFSM::PreConnectSelect:%_, ", ksFile_) >> _log;
+    }
 
     if (0 != ret && !IS_NOBLOCK_CONNECT_ERRNO(socket_errno)) {
         end_connecttime_ = ::gettickcount();
